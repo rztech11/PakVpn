@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'onboarding_screen1.dart';
+import 'package:pakvpnn/screens/homescreen.dart';
 
 class splash_screen extends StatefulWidget {
   const splash_screen({super.key});
@@ -38,12 +41,25 @@ class _SplashScreenState extends State<splash_screen>
 
     _controller.forward();
 
-    // Navigate after animation + small delay
+    // ✅ After animation + delay, check login
     Timer(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen1()),
-      );
+      if (!mounted) return;
+
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        // ✅ Already logged in -> go Home directly
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        // ✅ Not logged in -> continue onboarding
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingScreen1()),
+        );
+      }
     });
   }
 

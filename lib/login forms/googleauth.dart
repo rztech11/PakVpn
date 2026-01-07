@@ -3,7 +3,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // optional:
+    // scopes: ['email'],
+  );
 
   /// 🔹 Sign in with Google
   Future<User?> signInWithGoogle() async {
@@ -13,14 +16,16 @@ class GoogleAuthService {
 
       if (googleUser == null) {
         // User canceled the login
+        print("ℹ️ Google sign-in cancelled by user");
         return null;
       }
 
       // Get authentication details
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
 
       // Create Firebase credential
-      final credential = GoogleAuthProvider.credential(
+      final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
@@ -28,12 +33,17 @@ class GoogleAuthService {
       // Sign in to Firebase with the credential
       final UserCredential userCredential =
       await _auth.signInWithCredential(credential);
+
       final user = userCredential.user;
 
       print("✅ Google Sign-In Success: ${user?.email}");
       return user;
+    } on FirebaseAuthException catch (e, stack) {
+      print("🔥 FirebaseAuthException: ${e.code} - ${e.message}");
+      print(stack);
+      return null;
     } catch (e, stack) {
-      print("🔥 GOOGLE SIGN-IN ERROR: $e");
+      print("🔥 UNKNOWN GOOGLE SIGN-IN ERROR: $e");
       print(stack);
       return null;
     }
@@ -43,5 +53,6 @@ class GoogleAuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+    print("👋 Signed out from Google and Firebase");
   }
 }

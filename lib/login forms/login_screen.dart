@@ -1,28 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'login_form.dart';
 import 'googleauth.dart';
-import 'signup.dart'; // ✅ Import your signup form screen
+import 'signup.dart';
+import 'package:pakvpnn/screens/homescreen.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
-  // 🔹 Handle Google Sign-In Button Press
   Future<void> _handleGoogleSignIn(BuildContext context) async {
-    final user = await GoogleAuthService().signInWithGoogle();
+    try {
+      // ✅ your service should sign in and return Firebase User
+      final User? user = await GoogleAuthService().signInWithGoogle();
 
-    if (user != null) {
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Google Sign-In cancelled or failed")),
+        );
+        return;
+      }
+
+      // ✅ Save/Update user in Firestore
+      await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
+        "name": user.displayName ?? "User",
+        "email": user.email ?? "",
+        "phone": user.phoneNumber ?? "",
+        "emailVerified": user.emailVerified, // google is usually verified
+        "provider": "google",
+        "lastLoginAt": FieldValue.serverTimestamp(),
+        "createdAt": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // ✅ Navigate to HomeScreen (replace entire stack)
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Welcome, ${user.displayName ?? 'User'}!")),
       );
+    } on FirebaseAuthException catch (e) {
+      String message = "Google Sign-In failed";
+      if (e.code == "account-exists-with-different-credential") {
+        message =
+        "This email is already registered with another sign-in method. Try Email login.";
+      } else if (e.code == "network-request-failed") {
+        message = "No internet connection. Try again.";
+      } else {
+        message = "Google Sign-In error: ${e.message ?? e.code}";
+      }
 
-      // Example navigation (replace with your screen)
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const HomeScreen()),
-      // );
-    } else {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Google Sign-In failed")),
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Google Sign-In error: $e")),
       );
     }
   }
@@ -34,6 +73,7 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
+        // optional: if this is your first screen, back arrow can cause weird navigation
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -46,7 +86,6 @@ class LoginScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 80),
 
-            // 🔹 Logo
             Center(
               child: Image.asset(
                 "assets/logo.png",
@@ -55,7 +94,6 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
 
-            // 🔹 Tagline
             const Text(
               "Login now to access faster internet",
               textAlign: TextAlign.center,
@@ -67,7 +105,6 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // 🔹 Login with Email Button
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -94,7 +131,6 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 🔹 Login with Google Button
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -116,7 +152,6 @@ class LoginScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // 🔹 Signup Text (Clickable)
             GestureDetector(
               onTap: () {
                 Navigator.push(

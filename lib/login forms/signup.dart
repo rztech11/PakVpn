@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_form.dart';
-import '../screens/homescreen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -31,6 +30,10 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  bool _isValidEmail(String email) {
+    return RegExp(r'^\S+@\S+\.\S+$').hasMatch(email);
+  }
+
   Future<void> _signupUser() async {
     if (_loading) return;
     if (!_formKey.currentState!.validate()) return;
@@ -51,7 +54,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       final user = userCredential.user;
       if (user == null) {
-        if (mounted) setState(() => _loading = false);
+        setState(() => _loading = false);
         _showMsg("Signup failed: user is null.");
         return;
       }
@@ -59,20 +62,32 @@ class _SignupScreenState extends State<SignupScreen> {
       // ✅ Update display name
       await user.updateDisplayName(name);
 
+      // ✅ Send verification email (this proves the email is real/owned)
+      if (!user.emailVerified) {
+        await user.sendEmailVerification();
+      }
+
       // ✅ Save profile to Firestore
       await _db.collection("users").doc(user.uid).set({
         "name": name,
         "email": email,
         "phone": phone,
+        "emailVerified": false,
         "createdAt": FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) return;
       setState(() => _loading = false);
 
-      // ✅ Navigate to Home Screen
+      // ✅ Force verify first: sign out and go to login
+      await _auth.signOut();
+
+      _showMsg(
+        "Verification email sent to $email.\nPlease verify your email, then login.",
+      );
+
+      if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const EmailLoginForm()),
             (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -91,6 +106,9 @@ class _SignupScreenState extends State<SignupScreen> {
           break;
         case 'network-request-failed':
           message = 'No internet connection. Please try again.';
+          break;
+        case 'operation-not-allowed':
+          message = 'Email/password signup is not enabled in Firebase.';
           break;
         default:
           message = 'Auth error: ${e.code} - ${e.message ?? ""}';
@@ -164,9 +182,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           validator: (value) {
                             final v = value?.trim() ?? "";
                             if (v.isEmpty) return 'Please enter your email';
-                            if (!RegExp(r'^\S+@\S+\.\S+$').hasMatch(v)) {
-                              return 'Enter a valid email';
-                            }
+                            if (!_isValidEmail(v)) return 'Enter a valid email';
                             return null;
                           },
                         ),
@@ -177,8 +193,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _phoneController,
                           hint: 'Phone',
                           keyboardType: TextInputType.phone,
-                          validator: (value) =>
-                          value!.trim().isEmpty ? 'Please enter your phone number' : null,
+                          validator: (value) => value!.trim().isEmpty
+                              ? 'Please enter your phone number'
+                              : null,
                         ),
                         const SizedBox(height: 12),
 
@@ -222,8 +239,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             )
                                 : const Text(
                               'Sign up',
-                              style: TextStyle(
-                                  color: Colors.white, fontSize: 16),
+                              style: TextStyle(color: Colors.white, fontSize: 16),
                             ),
                           ),
                         ),
@@ -308,14 +324,12 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: InputDecoration(
           hintText: hint ?? '',
           hintStyle: const TextStyle(color: Colors.black45, fontSize: 14),
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
             borderSide: BorderSide.none,
             borderRadius: BorderRadius.circular(12),
           ),
-          errorStyle:
-          const TextStyle(color: Color.fromARGB(255, 243, 85, 73)),
+          errorStyle: const TextStyle(color: Color.fromARGB(255, 243, 85, 73)),
           helperText: ' ',
           helperStyle: const TextStyle(height: 0.5),
         ),
@@ -342,8 +356,7 @@ class _SignupScreenState extends State<SignupScreen> {
         decoration: InputDecoration(
           hintText: 'Password',
           hintStyle: const TextStyle(color: Colors.black45, fontSize: 14),
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
             borderSide: BorderSide.none,
             borderRadius: BorderRadius.circular(12),
@@ -355,8 +368,7 @@ class _SignupScreenState extends State<SignupScreen> {
               color: Colors.black45,
             ),
           ),
-          errorStyle:
-          const TextStyle(color: Color.fromARGB(255, 243, 85, 73)),
+          errorStyle: const TextStyle(color: Color.fromARGB(255, 243, 85, 73)),
           helperText: ' ',
           helperStyle: const TextStyle(height: 0.5),
         ),

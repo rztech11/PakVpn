@@ -1,27 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.pakvpnn">  <!-- ✅ Make sure this matches your Firebase package name -->
+    package="com.example.pakvpnn">
 
-    <!-- ✅ REQUIRED for Firebase & Google Sign-In -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:label="PAKVPN"
-        android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Required for Google Sign-In to link Firebase Auth -->
-        <meta-data
-            android:name="com.google.android.gms.appid"
-            android:value="@string/default_web_client_id" />
-
-        <!-- ✅ Optional but safe for Firebase -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <meta-data
-            android:name="com.google.firebase.auth.API_KEY"
-            android:value="@string/google_api_key" />
+
+        <activity
+            android:name="de.blinkt.openvpn.api.ConnectVPN"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
 
         <activity
             android:name=".MainActivity"
@@ -41,7 +37,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
         </activity>
+
     </application>
 
     <queries>
@@ -49,6 +47,9 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+
+        <package android:name="de.blinkt.openvpn" />
+
     </queries>
 
 </manifest>

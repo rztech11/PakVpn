@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:pakvpnn/login forms/login_screen.dart';
+import 'package:pakvpnn/vpn/vpn_controller.dart';
 
 // Firebase
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,8 +14,58 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin
+
+{
+  String _profileNameForSelectedServer() {
+    // IMPORTANT: These MUST match the profile names inside OpenVPN for Android
+    switch (selectedServer) {
+      case "Local Server":
+        return "PAKVPN-SSH";
+      case "Pakistan Server":
+        return "pakvpn_pk";
+      case "UAE Server":
+        return "pakvpn_uae";
+      case "Malaysia Server":
+        return "pakvpn_my";
+      default:
+        return "pakvpn_local";
+    }
+  }
+
+  //connect disconnect
+  Future<void> _toggleOpenVpn() async {
+    try {
+      // optional install check (keep it if it's working)
+      final installed = await OpenVpnControl.isInstalled();
+      final con = await OpenVpnControl.connect(profileName: 'PakVPN-SSH');
+
+      if (!installed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please install: OpenVPN for Android")),
+        );
+        return;
+      }
+
+      if (!isConnected) {
+        await OpenVpnControl.connect(profileName: "PAKVPN-SSH");
+        if (!mounted) return;
+        setState(() => isConnected = true);
+      } else {
+        await OpenVpnControl.disconnect();
+        if (!mounted) return;
+        setState(() => isConnected = false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("OpenVPN error: $e")),
+      );
+    }
+  }
+
+
   bool isConnected = false;
 
   String selectedServer = "Local Server";
@@ -45,9 +97,9 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
 
-    _controller =
-    AnimationController(vsync: this, duration: const Duration(seconds: 2))
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))
       ..repeat(reverse: true);
+
     _glowAnimation = Tween<double>(begin: 0.0, end: 15.0).animate(_controller);
 
     _loadUserProfile();
@@ -78,21 +130,20 @@ class _HomeScreenState extends State<HomeScreen>
         });
       }
     } catch (_) {
-      // handle error
+      // ignore for now
     }
-
   }
 
   Future<void> _logout() async {
     await _auth.signOut();
     if (!mounted) return;
 
+    // ✅ This will now go to your REAL LoginScreen from login_screen.dart
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
     );
   }
-
   @override
   void dispose() {
     _controller.dispose();
@@ -113,8 +164,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.08),
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(25)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -166,8 +216,7 @@ class _HomeScreenState extends State<HomeScreen>
                             },
                             child: Container(
                               margin: const EdgeInsets.symmetric(vertical: 6),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? const Color(0xFF0CBC8B).withOpacity(0.8)
@@ -175,8 +224,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Row(
                                     children: [
@@ -191,8 +239,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       ),
                                       const SizedBox(width: 12),
                                       Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             server['name']!,
@@ -214,16 +261,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                   Row(
                                     children: [
-                                      const Icon(
-                                        Icons.signal_cellular_alt,
-                                        color: Colors.greenAccent,
-                                      ),
+                                      const Icon(Icons.signal_cellular_alt, color: Colors.greenAccent),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        server['ping']!,
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                      ),
+                                      Text(server['ping']!, style: const TextStyle(color: Colors.white)),
                                     ],
                                   )
                                 ],
@@ -301,8 +341,7 @@ class _HomeScreenState extends State<HomeScreen>
             _menuItem("Privacy Policy", Icons.privacy_tip, () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const PrivacyPolicyScreen()),
+                MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
               );
             }),
 
@@ -342,10 +381,8 @@ class _HomeScreenState extends State<HomeScreen>
     contentPadding: EdgeInsets.zero,
     onTap: onTap,
     leading: Icon(icon, color: Colors.white70),
-    title: Text(title,
-        style: const TextStyle(color: Colors.white, fontSize: 15)),
-    trailing:
-    const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
+    title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 15)),
+    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
   );
 
   @override
@@ -404,16 +441,14 @@ class _HomeScreenState extends State<HomeScreen>
                       : [],
                 ),
                 child: GestureDetector(
-                  onTap: () => setState(() => isConnected = !isConnected),
+                  onTap: _toggleOpenVpn,
                   child: Container(
                     width: 160,
                     height: 160,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isConnected
-                            ? const Color(0xFF0CBC8B)
-                            : Colors.white.withOpacity(0.4),
+                        color: isConnected ? const Color(0xFF0CBC8B) : Colors.white.withOpacity(0.4),
                         width: 4,
                       ),
                     ),
@@ -421,10 +456,16 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.power_settings_new,
-                            color: Color(0xFF0CBC8B),
-                            size: 40,
+                          InkWell(
+                            onTap: (){
+                              print("Hello zahid VPN");
+                              OpenVpnControl.connect(profileName: 'PakVPN-SSH');
+                    },
+                            child: const Icon(
+                              Icons.power_settings_new,
+                              color: Color(0xFF0CBC8B),
+                              size: 40,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -523,14 +564,11 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   Row(
                     children: [
-                      const Icon(Icons.signal_cellular_alt,
-                          color: Colors.white),
+                      const Icon(Icons.signal_cellular_alt, color: Colors.white),
                       const SizedBox(width: 4),
-                      Text(selectedPing,
-                          style: const TextStyle(color: Colors.white)),
+                      Text(selectedPing, style: const TextStyle(color: Colors.white)),
                       const SizedBox(width: 5),
-                      const Icon(Icons.arrow_upward,
-                          color: Colors.white, size: 16),
+                      const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
                     ],
                   )
                 ],
@@ -556,8 +594,7 @@ class _HomeScreenState extends State<HomeScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 14)),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 14)),
               const SizedBox(width: 6),
               Icon(icon, color: Colors.white70, size: 16),
             ],
@@ -663,10 +700,8 @@ class SettingsScreen extends StatelessWidget {
         children: [
           ListTile(
             leading: const Icon(Icons.person, color: Colors.white70),
-            title: const Text("Account Info",
-                style: TextStyle(color: Colors.white)),
-            trailing:
-            const Icon(Icons.arrow_forward_ios, color: Colors.white38),
+            title: const Text("Account Info", style: TextStyle(color: Colors.white)),
+            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38),
             onTap: () {
               Navigator.push(
                 context,
@@ -677,10 +712,8 @@ class SettingsScreen extends StatelessWidget {
           const Divider(color: Colors.white24),
           ListTile(
             leading: const Icon(Icons.privacy_tip, color: Colors.white70),
-            title: const Text("Privacy Policy",
-                style: TextStyle(color: Colors.white)),
-            trailing:
-            const Icon(Icons.arrow_forward_ios, color: Colors.white38),
+            title: const Text("Privacy Policy", style: TextStyle(color: Colors.white)),
+            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38),
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
@@ -688,8 +721,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 30),
           const Center(
-            child: Text("App Version 1.0.0",
-                style: TextStyle(color: Colors.white54, fontSize: 13)),
+            child: Text("App Version 1.0.0", style: TextStyle(color: Colors.white54, fontSize: 13)),
           ),
         ],
       ),
@@ -717,8 +749,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: Text("Not logged in",
-              style: TextStyle(color: Colors.white70)),
+          child: Text("Not logged in", style: TextStyle(color: Colors.white70)),
         ),
       );
     }
@@ -789,30 +820,6 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// ✅ Dummy LoginScreen (Replace with your real login page)
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text("Login",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        centerTitle: true,
-      ),
-      body: const Center(
-        child: Text(
-          "Replace this with your real Login Screen",
-          style: TextStyle(color: Colors.white70),
-        ),
-      ),
     );
   }
 }
